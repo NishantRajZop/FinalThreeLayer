@@ -8,14 +8,6 @@ import (
 	"FinalThreeLayer/models"
 )
 
-type taskService interface {
-	GetAllTasks() ([]models.Task, error)
-	GetTaskByID(id int) (models.Task, error)
-	CreateTask(task models.Task) error
-	UpdateTask(id int) error
-	DeleteTask(id int) error
-}
-
 type taskHandler struct {
 	service taskService
 }
@@ -57,6 +49,12 @@ func (h *taskHandler) CreateTask(w http.ResponseWriter, r *http.Request) {
 	var task models.Task
 	if err := json.NewDecoder(r.Body).Decode(&task); err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	if task.Title == "" {
+		w.WriteHeader(http.StatusBadRequest)
+		w.Write([]byte("Task Title can not Be Empty"))
 		return
 	}
 

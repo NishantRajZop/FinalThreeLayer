@@ -2,132 +2,142 @@ package handler
 
 import (
 	"FinalThreeLayer/models"
+	"bytes"
+	"encoding/json"
 	"errors"
+	"github.com/stretchr/testify/assert"
+	"go.uber.org/mock/gomock"
 	"net/http"
 	"net/http/httptest"
-	"strings"
 	"testing"
 )
 
-// MockUserService implements userService for testing
-type MockUserService struct {
-	CreateUserFunc  func(models.User) error
-	GetUserByIDFunc func(id int) (models.User, error)
-}
+func TestUserHandler_CreateUser(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
 
-func (m *MockUserService) CreateUser(user models.User) error {
-	return m.CreateUserFunc(user)
-}
-
-func (m *MockUserService) GetUserByID(id int) (models.User, error) {
-	return m.GetUserByIDFunc(id)
-}
-
-func TestCreateUser(t *testing.T) {
 	tests := []struct {
-		name           string
-		requestBody    string
-		mockService    *MockUserService
-		expectedStatus int
-		expectedBody   string
+		name         string
+		user         models.User
+		setupMock    func(*MockuserService)
+		expectedCode int
+		expectedBody string
 	}{
 		{
-			name:        "success",
-			requestBody: `{"id":1,"name":"John Doe"}`,
-			mockService: &MockUserService{
-				CreateUserFunc: func(user models.User) error {
-					return nil
-				},
+			name: "success - create user",
+			user: models.User{ID: 1, Name: "John Doe"},
+			setupMock: func(mock *MockuserService) {
+				mock.EXPECT().
+					CreateUser(models.User{ID: 1, Name: "John Doe"}).
+					Return(nil)
 			},
-			expectedStatus: http.StatusCreated,
-			expectedBody:   "",
+			expectedCode: http.StatusCreated,
 		},
 		{
-			name:        "internal server error",
-			requestBody: `{"id":1,"name":"John Doe"}`,
-			mockService: &MockUserService{
-				CreateUserFunc: func(user models.User) error {
-					return errors.New("database error")
-				},
+			name: "error - invalid payload",
+			user: models.User{},
+			setupMock: func(mock *MockuserService) {
+				// No expectations for invalid payload
 			},
-			expectedStatus: http.StatusInternalServerError,
-			expectedBody:   "database error\n",
+			expectedCode: http.StatusBadRequest,
+			expectedBody: "unexpected end of JSON input\n",
+		},
+		{
+			name: "error - database failure",
+			user: models.User{ID: 1, Name: "John Doe"},
+			setupMock: func(mock *MockuserService) {
+				mock.EXPECT().
+					CreateUser(models.User{ID: 1, Name: "John Doe"}).
+					Return(errors.New("database error"))
+			},
+			expectedCode: http.StatusInternalServerError,
+			expectedBody: "database error\n",
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			handler := NewUserHandler(tt.mockService)
-			req := httptest.NewRequest("POST", "/users", strings.NewReader(tt.requestBody))
+			mockService := NewMockuserService(ctrl)
+			tt.setupMock(mockService)
+
+			handler := NewUserHandler(mockService)
+			body, _ := json.Marshal(tt.user)
+			req := httptest.NewRequest("POST", "/users", bytes.NewReader(body))
 			w := httptest.NewRecorder()
 
 			handler.CreateUser(w, req)
 
-			if w.Code != tt.expectedStatus {
-				t.Errorf("expected status %d, got %d", tt.expectedStatus, w.Code)
-			}
-
-			if strings.TrimSpace(w.Body.String()) != strings.TrimSpace(tt.expectedBody) {
-				t.Errorf("expected body %q, got %q", tt.expectedBody, w.Body.String())
+			assert.Equal(t, tt.expectedCode, w.Code)
+			if tt.expectedBody != "" {
+				assert.Equal(t, tt.expectedBody, w.Body.String())
 			}
 		})
 	}
 }
 
-func TestGetByUserId(t *testing.T) {
+func TestUserHandler_GetByUserId(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
 	tests := []struct {
-		name           string
-		userID         string
-		mockService    *MockUserService
-		expectedStatus int
-		expectedBody   string
+		name         string
+		userID       string
+		setupMock    func(*MockuserService)
+		expectedCode int
+		expectedBody string
 	}{
 		{
-			name:   "success",
+			name:   "success - get user by ID",
 			userID: "1",
-			mockService: &MockUserService{
-				GetUserByIDFunc: func(id int) (models.User, error) {
-					return models.User{ID: id, Name: "John Doe"}, nil
-				},
+			setupMock: func(mock *MockuserService) {
+				mock.EXPECT().
+					GetUserByID(1).
+					Return(models.User{ID: 1, Name: "John Doe"}, nil)
 			},
-			expectedStatus: http.StatusOK,
-			expectedBody:   `{"id":1,"name":"John Doe"}`,
+			expectedCode: http.StatusOK,
+			expectedBody: `{"id":1,"name":"John Doe"}`,
 		},
 		{
-			name:           "invalid id",
-			userID:         "abc",
-			mockService:    &MockUserService{},
-			expectedStatus: http.StatusBadRequest,
-			expectedBody:   "Invalid user ID\n",
+			name:   "error - invalid user ID",
+			userID: "abc",
+			setupMock: func(mock *MockuserService) {
+				// No expectations for invalid ID
+			},
+			expectedCode: http.StatusBadRequest,
+			expectedBody: "Invalid user ID\n",
 		},
 		{
-			name:   "not found",
+			name:   "error - user not found",
 			userID: "999",
-			mockService: &MockUserService{
-				GetUserByIDFunc: func(id int) (models.User, error) {
-					return models.User{}, errors.New("user not found")
-				},
+			setupMock: func(mock *MockuserService) {
+				mock.EXPECT().
+					GetUserByID(999).
+					Return(models.User{}, errors.New("user not found"))
 			},
-			expectedStatus: http.StatusNotFound,
-			expectedBody:   "user not found\n",
+			expectedCode: http.StatusNotFound,
+			expectedBody: "user not found\n",
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			handler := NewUserHandler(tt.mockService)
+			mockService := NewMockuserService(ctrl)
+			tt.setupMock(mockService)
+
+			handler := NewUserHandler(mockService)
 			req := httptest.NewRequest("GET", "/users/"+tt.userID, nil)
 			req.SetPathValue("id", tt.userID)
 			w := httptest.NewRecorder()
 
 			handler.GetByUserId(w, req)
 
-			if w.Code != tt.expectedStatus {
-				t.Errorf("expected status %d, got %d", tt.expectedStatus, w.Code)
-			}
-
-			if strings.TrimSpace(w.Body.String()) != strings.TrimSpace(tt.expectedBody) {
-				t.Errorf("expected body %q, got %q", tt.expectedBody, w.Body.String())
+			assert.Equal(t, tt.expectedCode, w.Code)
+			if tt.expectedBody != "" {
+				if w.Code == http.StatusOK {
+					assert.JSONEq(t, tt.expectedBody, w.Body.String())
+				} else {
+					assert.Equal(t, tt.expectedBody, w.Body.String())
+				}
 			}
 		})
 	}
