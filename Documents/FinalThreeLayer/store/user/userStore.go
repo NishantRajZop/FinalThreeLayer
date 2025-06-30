@@ -20,6 +20,7 @@ func (s *userStore) CreateUser(user models.User) error {
 		fmt.Println(err)
 		return err
 	}
+
 	return nil
 }
 

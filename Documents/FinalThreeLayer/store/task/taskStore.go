@@ -43,8 +43,7 @@ func (s *taskStore) GetTaskByID(id int) (models.Task, error) {
 func (s *taskStore) CreateTask(task models.Task) error {
 	_, err := s.db.Exec("INSERT INTO tasks(title, user_id) VALUES(?, ?)", task.Title, task.UserID)
 	if err != nil {
-		fmt.Println(err)
-		return err
+		return fmt.Errorf("failed to fetch task: %v", err)
 	} else {
 		return nil
 	}
@@ -53,8 +52,7 @@ func (s *taskStore) CreateTask(task models.Task) error {
 func (s *taskStore) UpdateTask(id int) error {
 	_, err := s.db.Exec("UPDATE tasks SET completed = ? WHERE id = ?", true, id)
 	if err != nil {
-		fmt.Println(err)
-		return err
+		return fmt.Errorf("failed to fetch task: %v", err)
 	} else {
 		return nil
 	}
@@ -63,8 +61,7 @@ func (s *taskStore) UpdateTask(id int) error {
 func (s *taskStore) DeleteTask(id int) error {
 	_, err := s.db.Exec("DELETE FROM tasks WHERE id = ?", id)
 	if err != nil {
-		fmt.Println(err)
-		return err
+		return fmt.Errorf("failed to fetch task: %v", err)
 	} else {
 		return nil
 	}
