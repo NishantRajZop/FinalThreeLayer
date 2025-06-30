@@ -7,7 +7,7 @@
 //
 
 // Package mock_handler is a generated GoMock package.
-package handler
+package taskHandler
 
 import (
 	models "FinalThreeLayer/models"

@@ -2,14 +2,13 @@ package main
 
 import (
 	"FinalThreeLayer/dataSource"
+	taskHandler2 "FinalThreeLayer/handler/taskHandler"
+	"FinalThreeLayer/handler/userHandler"
 	taskStore "FinalThreeLayer/store/task"
 	userStore "FinalThreeLayer/store/user"
 
 	taskService "FinalThreeLayer/service"
 	userService "FinalThreeLayer/service"
-
-	taskHandler "FinalThreeLayer/handler"
-	userHandler "FinalThreeLayer/handler"
 
 	"log"
 	"net/http"
@@ -23,7 +22,7 @@ func main() {
 	tService := taskService.NewTaskService(tStore)
 	uService := userService.NewUserService(uStore)
 
-	tHandler := taskHandler.NewTaskHandler(tService)
+	tHandler := taskHandler2.NewTaskHandler(tService)
 	uHandler := userHandler.NewUserHandler(uService)
 
 	http.HandleFunc("GET /tasks", tHandler.GetAll)
