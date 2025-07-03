@@ -3,6 +3,7 @@ package store
 import (
 	"FinalThreeLayer/models"
 	"database/sql"
+	"errors"
 	"fmt"
 	_ "github.com/go-sql-driver/mysql"
 )
@@ -21,8 +22,12 @@ func New(db *sql.DB) *taskStore {
 }
 
 func (s *taskStore) GetAllTasks() ([]models.Task, error) {
-	rows, _ := s.db.Query("SELECT id, title, user_id, completed FROM tasks")
+	rows, err := s.db.Query("SELECT id, title, user_id, completed FROM tasks")
 	defer rows.Close()
+
+	if err != nil {
+		return []models.Task{}, errors.New("database error")
+	}
 
 	var tasks []models.Task
 	for rows.Next() {

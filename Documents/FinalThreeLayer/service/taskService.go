@@ -2,15 +2,8 @@ package service
 
 import (
 	"FinalThreeLayer/models"
+	"errors"
 )
-
-type TaskStore interface {
-	GetAllTasks() ([]models.Task, error)
-	GetTaskByID(id int) (models.Task, error)
-	CreateTask(task models.Task) error
-	UpdateTask(id int) error
-	DeleteTask(id int) error
-}
 
 type taskService struct {
 	store TaskStore
@@ -31,16 +24,23 @@ func (tService *taskService) GetTaskByID(id int) (models.Task, error) {
 }
 
 func (tService *taskService) CreateTask(task models.Task) error {
-	//You can Perform All Your Validations here
+	if task.Title == "" {
+		return errors.New("task title cannot be empty")
+	}
 	return tService.store.CreateTask(task)
 }
 
 func (tService *taskService) UpdateTask(id int) error {
-	//You can Perform All Your Validations here
+	if id == 0 {
+		return errors.New("invalid task ID")
+	}
 	return tService.store.UpdateTask(id)
 }
 
 func (tService *taskService) DeleteTask(id int) error {
 	//You can Perform All Your Validations here
+	if id == 0 {
+		return errors.New("invalid task ID")
+	}
 	return tService.store.DeleteTask(id)
 }
